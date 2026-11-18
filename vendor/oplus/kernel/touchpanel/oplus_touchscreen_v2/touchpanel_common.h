@@ -793,6 +793,8 @@ struct touchpanel_data {
 	tp_resume_order tp_resume_order;
 	tp_suspend_order tp_suspend_order;
 	bool skip_reset_in_resume;                          /*some incell ic is reset by lcd reset*/
+	bool pm_irq_disabled;                                /*irq disabled by tp_pm_suspend, keeps disable/enable paired*/
+	bool pm_irq_wake_enabled;                            /*irq wake enabled by tp_pm_suspend, keeps wake pair paired*/
 
 	/*LCD and TP is in one chip,lcd power off in suspend at first, can not operate i2c when tp suspend*/
 	bool skip_suspend_operate;
