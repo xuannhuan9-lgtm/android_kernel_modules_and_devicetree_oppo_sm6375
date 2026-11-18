@@ -4115,11 +4115,14 @@ void tp_pm_suspend(struct touchpanel_data *ts)
 		if (TP_ALL_GESTURE_ENABLE) {
 			/*enable gpio wake system through interrupt*/
 			enable_irq_wake(ts->irq);
+			ts->pm_irq_wake_enabled = true;
+			ts->pm_irq_disabled = false;
 			return;
 		}
 	}
 
 	disable_irq(ts->irq);
+	ts->pm_irq_disabled = true;
 }
 EXPORT_SYMBOL(tp_pm_suspend);
 
@@ -4135,15 +4138,23 @@ void tp_pm_resume(struct touchpanel_data *ts)
 		return;
 	}
 
-	if (TP_ALL_GESTURE_SUPPORT) {
-		if (TP_ALL_GESTURE_ENABLE) {
-			/*disable gpio wake system through intterrupt*/
-			disable_irq_wake(ts->irq);
-			goto OUT;
-		}
+	/*
+	 * Keep the irq state paired with tp_pm_suspend.
+	 * gesture_enable/fp_enable may change while the screen is off, so the
+	 * resume branch is not guaranteed to match the suspend branch. The old
+	 * code called enable_irq() unconditionally, which triggered "Unbalanced
+	 * enable for IRQ" and left the touch irq disabled: touch stayed dead
+	 * after screen on until something re-registered the irq.
+	 */
+	if (ts->pm_irq_wake_enabled) {
+		disable_irq_wake(ts->irq);
+		ts->pm_irq_wake_enabled = false;
 	}
 
-	enable_irq(ts->irq);
+	if (ts->pm_irq_disabled) {
+		enable_irq(ts->irq);
+		ts->pm_irq_disabled = false;
+	}
 
 OUT:
 	ts->bus_ready = true;
